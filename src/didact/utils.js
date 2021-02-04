@@ -7,7 +7,6 @@ export const EffectTags = {
   deletion: 'DELETION'
 };
 export const isEvent = (key) => {
-    debugger
     return key.startsWith('on');
 };
 export const isProp = (key) => {
