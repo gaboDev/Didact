@@ -1,17 +1,43 @@
-import React from 'react';
-import ReactDOM from 'react-dom';
-import './index.css';
-import App from './App';
-import reportWebVitals from './reportWebVitals';
+/** @jsxRuntime classic */
+import Didact from "./didact";
+import {useState} from "./didact/fiber";
 
-ReactDOM.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-  document.getElementById('root')
-);
+/** @jsx Didact.createElement */
+function FunctionComponent(props){
+    const {title} = props;
+    return (
+        <p>Functional component: {title}</p>
+    )
+}
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
-reportWebVitals();
+function ComponenWithHook(props) {
+    const {initialValue} = props;
+    const [value, setValue] = useState(initialValue);
+    const handleClick = () => {
+        setValue(c => Math.random());
+    }
+    return (
+        <button onClick={handleClick}>
+            {value}
+        </button>
+    )
+}
+
+const updateValue = e => {
+    rerender(e.target.value)
+}
+
+const rerender = value => {
+    const container = document.getElementById("root");
+    const element = (
+        <div>
+            <input onInput={updateValue} value={value} />
+            <FunctionComponent title={value}/>
+            <ComponenWithHook initialValue='Go'/>
+        </div>
+    );
+    /** @jsx Didact.createElement */
+    Didact.render(element, container)
+}
+
+rerender("Hello world");
