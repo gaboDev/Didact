@@ -1,14 +1,9 @@
 import Didact from './index';
-import {EffectTags, getEventType, isEvent, isFunctionComponent} from "./resources";
-import {isProp, isNew, isGone} from "./resources";
+import {EffectTags, isFunctionComponent} from "./utils";
+import {updateFunctionComponent} from "./functionComponent";
+import {updateDOM, updateHostComponent} from "./didact";
 
-
-let nextUnitOfWork = null;
-let wipRoot = null;
-let currentRoot = null;
-let deletions = [];
-
-const reconcileChildren = (wipFiber, children) => {
+export const reconcileChildren = (wipFiber, children) => {
     let oldFiber = wipFiber.alternate && wipFiber.alternate.child;
     let prevSibling = null;
     for (let index = 0; index < children.length || oldFiber; index++) {
@@ -42,7 +37,7 @@ const reconcileChildren = (wipFiber, children) => {
         }
         if (oldFiber && !areSameType) {
             oldFiber.effectTag = EffectTags.deletion;
-            deletions.push(oldFiber);
+            Didact.configs.deletions.push(oldFiber);
         }
 
         if (oldFiber) {
@@ -59,32 +54,11 @@ const reconcileChildren = (wipFiber, children) => {
     }
 }
 
-let wipFiber = null
-let hookIndex = null
-
-const updateFunctionComponent = (fiber) => {
-    wipFiber = fiber
-    hookIndex = 0
-    wipFiber.hooks = []
-    const children = fiber.type(fiber.props);
-    reconcileChildren(fiber, [children])
-}
-
-const updateHostComponent = (fiber) => {
-    if (!fiber.dom){
-        fiber.dom = Didact.createDOMNode(fiber);
-    }
-    const {children} = fiber.props;
-    reconcileChildren(fiber, children);
-}
-
 const performUnitOfWork = (fiber) => {
-    const isFunctionComponent = fiber.type instanceof Function;
-    if (isFunctionComponent){
-        updateFunctionComponent(fiber);
-    }else{
-        updateHostComponent(fiber);
-    }
+    const children = isFunctionComponent(fiber)
+                     ? updateFunctionComponent(fiber)
+                     : updateHostComponent(fiber)
+    reconcileChildren(fiber, children);
     if (fiber.child){
         return fiber.child;
     }
@@ -95,71 +69,6 @@ const performUnitOfWork = (fiber) => {
         }
         nextFiber = nextFiber.parent;
     }
-}
-
-export const useState = (initial) => {
-    const oldHook =
-        wipFiber.alternate &&
-        wipFiber.alternate.hooks &&
-        wipFiber.alternate.hooks[hookIndex];
-    const hook = {
-        state: oldHook ? oldHook.state : initial,
-        queue: [],
-    }
-
-    const actions = oldHook ? oldHook.queue : [];
-    actions.forEach(action => {
-        hook.state = action(hook.state);
-    })
-
-    const setState = action => {
-        hook.queue.push(action)
-        wipRoot = {
-            dom: currentRoot.dom,
-            props: currentRoot.props,
-            alternate: currentRoot,
-        }
-        nextUnitOfWork = wipRoot;
-        deletions = []
-    }
-
-    wipFiber.hooks.push(hook)
-    hookIndex++
-    return [hook.state, setState]
-}
-
-export const updateDOM = (dom, prevProps, nextProps) => {
-    
-    const oldPropKeys = Object.keys(prevProps);
-    const filteredOldPropKeys = oldPropKeys.filter(isProp)
-                                           .filter(isGone(prevProps, nextProps));
-    filteredOldPropKeys.forEach(key => dom[key] = '');
-
-    const eventOldPropKeys = oldPropKeys.filter(isEvent)
-                                     .filter(key => !(key in nextProps) || isNew(prevProps, nextProps)(key));
-    eventOldPropKeys.forEach(key => {
-        const eventType = getEventType(key);
-        dom.removeEventListener(
-            eventType,
-            prevProps[key]
-        );
-    });
-
-    const newPropKeys = Object.keys(nextProps);
-    const filteredNewPropKeys = newPropKeys.filter(isProp)
-                                           .filter(isNew(prevProps, nextProps));
-    filteredNewPropKeys.forEach(key => dom[key] = nextProps[key]);
-
-    const eventNextPropKeys = newPropKeys.filter(isEvent)
-                                         .filter(isNew(prevProps, nextProps));
-    eventNextPropKeys.forEach(name => {
-            const eventType = getEventType(name);
-            dom.addEventListener(
-                eventType,
-                nextProps[name]
-            )
-        })
-
 }
 
 const commitDeletion = (fiber, domParent) => {
@@ -193,38 +102,23 @@ const commitWork = (fiber) => {
 }
 
 const commitRoot = () => {
-    deletions.forEach(commitWork);
-    commitWork(wipRoot.child);
-    currentRoot = wipRoot;
-    wipRoot = null;
+    Didact.configs.deletions.forEach(commitWork);
+    commitWork(Didact.configs.wipRoot.child);
+    Didact.configs.currentRoot = Didact.configs.wipRoot;
+    Didact.configs.wipRoot = null;
 }
 
 export const workLoop = (deadLine) => {
 
     let shouldYield = false;
-    while (nextUnitOfWork && !shouldYield){
-        nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
+    while (Didact.configs.nextUnitOfWork && !shouldYield){
+        Didact.configs.nextUnitOfWork = performUnitOfWork(Didact.configs.nextUnitOfWork);
         shouldYield = deadLine.timeRemaining() > 1;
     }
-    if (!nextUnitOfWork && wipRoot){
+    if (!Didact.configs.nextUnitOfWork && Didact.configs.wipRoot){
         commitRoot();
     }
 
     window.requestIdleCallback(workLoop);
-}
-
-window.requestIdleCallback(workLoop);
-
-export const render = (element, container) => {
-    wipRoot = {
-        dom: container,
-        props:{
-            children: [element]
-        },
-        alternate: currentRoot
-    }
-    deletions = [];
-    nextUnitOfWork = wipRoot;
-    
 }
 

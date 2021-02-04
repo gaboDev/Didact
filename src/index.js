@@ -1,8 +1,9 @@
 /** @jsxRuntime classic */
-import Didact from "./didact";
-import {useState} from "./didact/fiber";
-
 /** @jsx Didact.createElement */
+
+import Didact from "./didact";
+import {useState} from "./didact/hooks";
+
 function FunctionComponent(props){
     const {title} = props;
     return (
@@ -10,7 +11,7 @@ function FunctionComponent(props){
     )
 }
 
-function ComponenWithHook(props) {
+const ComponenWithHook = (props) => {
     const {initialValue} = props;
     const [value, setValue] = useState(initialValue);
     const handleClick = () => {
@@ -36,7 +37,6 @@ const rerender = value => {
             <ComponenWithHook initialValue='Go'/>
         </div>
     );
-    /** @jsx Didact.createElement */
     Didact.render(element, container)
 }
 

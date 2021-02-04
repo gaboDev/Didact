@@ -1,62 +1,23 @@
-import {ElementTypes, isProp} from './resources';
-import {render, updateDOM} from "./fiber";
+import {workLoop} from "./fiber";
+import {createDOMNode, createElement, render} from "./didact";
 
-const createTextElement = (textElement) => {
+const buildDidactInstance = () => {
+    const configs = {
+        nextUnitOfWork: null,
+        wipRoot: null,
+        currentRoot: null,
+        deletions: [],
+        wipFiber: null,
+        hookIndex: null
+    }
     return {
-        type: ElementTypes.text,
-        props: {
-            nodeValue: textElement,
-            children: []
-        }
+        createElement,
+        render,
+        createDOMNode,
+        configs
     }
 }
 
-const mapChildren = (children) => {
-    return children.map((currentChild) => {
-        return typeof currentChild === "object"
-            ? currentChild
-            : createTextElement(currentChild)
-    });
-}
-
-const buildDOMNode = (elementType) => {
-    return elementType === ElementTypes.text
-        ? document.createTextNode('')
-        : document.createElement(elementType);
-}
-
-const setNodeProps = (element, domNode) => {
-    const {props} = element;
-    const elementPropKeys = Object.keys(props);
-    
-    const filteredElementPropsKeys = elementPropKeys.filter(isProp);
-    
-    filteredElementPropsKeys.forEach((propKey) => {
-        domNode[propKey] = props[propKey];
-    })
-}
-
-const createDOMNode = (element) => {
-    const {type} = element;
-    const domNode = buildDOMNode(type);
-    updateDOM(domNode, {}, element.props);
-    return domNode;
-}
-
-const createElement = (type, props, ...children) => {
-    return {
-        type,
-        props: {
-            ...props,
-            children: mapChildren(children)
-        }
-    }
-}
-
-
-const Didact = {
-    createElement,
-    createDOMNode,
-    render
-};
+window.requestIdleCallback(workLoop);
+const Didact = buildDidactInstance();
 export default Didact;
